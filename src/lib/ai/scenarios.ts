@@ -1,6 +1,8 @@
 export type PlaygroundScenarioId =
   | 'cloud-education'
+  | 'cloud-education-fr'
   | 'hybrid-guidance'
+  | 'hybrid-guidance-fr'
   | 'local-transaction'
   | 'multiple-transactions'
   | 'french-transaction'
@@ -14,7 +16,7 @@ export type PlaygroundScenario =
       description: string
       prompt: string
       classification: 'general_education' | 'general_business_guidance'
-      language: 'en'
+      language: 'en' | 'fr'
     }
   | {
       id: PlaygroundScenarioId
@@ -47,6 +49,16 @@ export const playgroundScenarios: PlaygroundScenario[] = [
     language: 'en',
   },
   {
+    id: 'cloud-education-fr',
+    kind: 'education',
+    title: 'Éducation financière · Cloud',
+    description: 'Une question générale de culture financière, sans contexte personnel.',
+    prompt:
+      'Expliquez la différence entre le flux de trésorerie et le bénéfice à un petit commerçant. Donnez un exemple simple et clairement hypothétique.',
+    classification: 'general_education',
+    language: 'fr',
+  },
+  {
     id: 'hybrid-guidance',
     kind: 'education',
     title: 'Record-keeping guidance · Hybrid',
@@ -55,6 +67,16 @@ export const playgroundScenarios: PlaygroundScenario[] = [
       'Suggest three practical ways a market trader can keep clearer daily records. Do not make lending or credit decisions.',
     classification: 'general_business_guidance',
     language: 'en',
+  },
+  {
+    id: 'hybrid-guidance-fr',
+    kind: 'education',
+    title: 'Conseils de tenue de registres · Hybride',
+    description: 'Conseils généraux sans registres privés.',
+    prompt:
+      'Proposez trois méthodes pratiques pour qu’un commerçant tienne des registres quotidiens plus clairs. Ne prenez aucune décision de crédit.',
+    classification: 'general_business_guidance',
+    language: 'fr',
   },
   {
     id: 'local-transaction',

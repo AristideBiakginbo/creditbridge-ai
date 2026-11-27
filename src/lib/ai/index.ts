@@ -24,3 +24,4 @@ export type {
   InferenceSourceLabel,
   PlaygroundResult,
 } from './types'
+export type { DeviceModelAvailability } from './capabilities'

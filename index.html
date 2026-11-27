@@ -2,14 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="CreditBridge AI foundation status: privacy-aware financial tools for microentrepreneurs."
+      content="Understand your business finances with CreditBridge AI: practical, privacy-aware tools designed for small businesses."
     />
     <meta name="theme-color" content="#064E3B" />
-    <title>CreditBridge AI | Technical Status</title>
+    <title>CreditBridge AI — Your business, your financial future</title>
+    <script>
+      try {
+        const savedTheme = localStorage.getItem('creditbridge-theme');
+        const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+        document.documentElement.dataset.theme =
+          savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : preferredTheme;
+      } catch {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --experimental-strip-types --test tests/ai-foundation.test.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,8 +21,10 @@
     "papaparse": "^5.7.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.7",
     "recharts": "^3.11.1",
+    "remark-gfm": "^4.0.1",
     "tailwindcss": "^4.3.5",
     "zod": "^4.6.7"
   },

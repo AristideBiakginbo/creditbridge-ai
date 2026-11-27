@@ -4,6 +4,10 @@ import {
   PrivacyPolicyViolation,
   runUnderPrivacyPolicy,
 } from '../src/lib/ai/privacyPolicy.ts'
+import {
+  getPlaygroundScenario,
+  playgroundScenarios,
+} from '../src/lib/ai/scenarios.ts'
 import { parseTransactionExtraction } from '../src/lib/ai/schemas.ts'
 
 const transaction = (overrides = {}) => ({
@@ -138,4 +142,19 @@ test('ambiguous FCFA is left unresolved unless a business currency is explicit',
   if (resolved.success) {
     assert.equal(resolved.transactions[0].currency, 'XOF')
   }
+})
+
+test('education prompts are predefined, non-sensitive, and available in English and French', () => {
+  const educationPrompts = playgroundScenarios.filter(
+    (scenario) => scenario.kind === 'education',
+  )
+
+  assert.equal(educationPrompts.length, 4)
+  assert.ok(educationPrompts.every((scenario) =>
+    scenario.classification === 'general_education'
+      || scenario.classification === 'general_business_guidance',
+  ))
+  assert.ok(educationPrompts.some((scenario) => scenario.language === 'en'))
+  assert.ok(educationPrompts.some((scenario) => scenario.language === 'fr'))
+  assert.equal(getPlaygroundScenario('arbitrary-user-prompt'), undefined)
 })

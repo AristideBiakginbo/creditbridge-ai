@@ -20,13 +20,21 @@ features.
   environment files.
 - `src/lib/ai/` is the application boundary for Firebase AI Logic, inference
   modes, privacy authorization, error mapping, and transaction validation.
-- `src/features/ai-playground/` contains diagnostic UI and preview-only
-  transaction entry. No transaction persistence is implemented.
+- `src/app/` contains lazy React Router layouts and theme, language, and demo
+  data providers. `src/features/` contains route-level page modules.
+- `src/demo/` contains synthetic sample transactions, Zod validation, and an
+  isolated browser-local demonstration repository. It is not an account store
+  and must not be connected to Firebase, Firestore, or Dexie by implication.
+- `src/features/ai-playground/` is a development-only diagnostic route.
+  Keep it lazy and exclude it from production routing and the initial bundle.
+- The dashboard and transaction manager use the same synthetic MAD dataset.
+  Manual demo entry and reviewed AI extraction must not silently convert
+  currencies or mix real user records into this dataset.
 - Tailwind CSS v4 is configured through the Vite plugin. Keep shared design
   tokens in `src/index.css`.
-- Dexie is available for future offline-first records but is not yet wired to
-  the current transaction previews. Cloud synchronization must remain
-  explicit and optional.
+- Dexie is available for a future offline-first account-data implementation;
+  it is not the demo repository. Cloud synchronization is not implemented and
+  must remain explicit and optional.
 
 ## Coding conventions
 
@@ -36,6 +44,9 @@ features.
 - Validate untrusted input at boundaries with Zod where appropriate.
 - Keep interfaces responsive and accessible: semantic HTML, labels, keyboard
   support, visible focus states, and useful error feedback.
+- Keep user-facing copy bilingual in English and French through the shared
+  language context. Use the existing semantic theme tokens rather than
+  hard-coded light-only colors.
 - Use clear diagnostic states. SDK initialization is not proof of backend
   connectivity, authorization, synchronization, or successful inference.
 - Do not log prompts, model output containing financial details, credentials,
@@ -74,9 +85,16 @@ features.
 - Validate structured model output strictly. Do not invent amounts, dates,
   currencies, or transactions. Keep `FCFA` unresolved between XAF and XOF
   unless an explicit business currency is configured.
-- Keep transaction extraction editable and preview-only until a separately
-  authorized persistence workflow exists. Human review is required; no
-  automated lending decisions.
+- Keep transaction extraction editable and require human confirmation before
+  adding reviewed values to the separate synthetic local demo repository.
+  Never treat this flow as storage for real financial records. No automated
+  lending decisions.
+- Authentication and onboarding are previews only: do not accept credentials,
+  simulate account creation, or persist the onboarding profile. Cloud sync
+  remains off; cloud education consent is request-scoped and never carried
+  forward from onboarding.
+- Do not describe documentation readiness as a credit score or credit
+  eligibility. Passport and loan features remain previews until implemented.
 - Be explicit about uncertain browser and device support for on-device models.
   Never fabricate responses or silently fall back to cloud for sensitive input.
 
@@ -89,5 +107,7 @@ features.
   not provisioned AI Logic, confirm the active project and run
   `npx -y firebase-tools@latest init ailogic`.
 - Run `npm test`, `npm run lint`, and `npm run build` for relevant changes.
+- When changing page layout or navigation, validate narrow mobile, tablet,
+  laptop, and wide desktop widths and check keyboard focus and both themes.
 - Add focused tests for new privacy policy and validation behavior. Do not
   deploy or enable billing during local validation.

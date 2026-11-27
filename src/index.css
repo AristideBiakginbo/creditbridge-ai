@@ -1,31 +1,172 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-primary: #064e3b;
-  --color-secondary: #0d9488;
-  --color-accent: #34d399;
-  --color-background: #f8fafc;
-  --color-text: #0f172a;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans', Inter, ui-sans-serif, system-ui,
+    sans-serif;
+  --color-background: var(--cb-background);
+  --color-foreground: var(--cb-foreground);
+  --color-surface: var(--cb-surface);
+  --color-muted: var(--cb-muted);
+  --color-muted-foreground: var(--cb-muted-foreground);
+  --color-primary: var(--cb-primary);
+  --color-primary-foreground: var(--cb-primary-foreground);
+  --color-secondary: var(--cb-secondary);
+  --color-accent: var(--cb-accent);
+  --color-border: var(--cb-border);
+  --color-input: var(--cb-input);
+  --color-ring: var(--cb-ring);
+  --color-success: var(--cb-success);
+  --color-warning: var(--cb-warning);
+  --color-destructive: var(--cb-destructive);
+  --color-chart-1: var(--cb-chart-1);
+  --color-chart-2: var(--cb-chart-2);
+  --color-chart-3: var(--cb-chart-3);
+  --color-chart-4: var(--cb-chart-4);
+  --color-chart-5: var(--cb-chart-5);
 }
 
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color-scheme: light;
-  background: var(--color-background);
-  color: var(--color-text);
+  --cb-background: #f8fafc;
+  --cb-foreground: #0f172a;
+  --cb-surface: #ffffff;
+  --cb-muted: #f1f5f9;
+  --cb-muted-foreground: #64748b;
+  --cb-primary: #064e3b;
+  --cb-primary-foreground: #ffffff;
+  --cb-secondary: #0d9488;
+  --cb-accent: #34d399;
+  --cb-border: #e2e8f0;
+  --cb-input: #cbd5e1;
+  --cb-ring: #0d9488;
+  --cb-success: #15803d;
+  --cb-warning: #b45309;
+  --cb-destructive: #b91c1c;
+  --cb-chart-1: #0d9488;
+  --cb-chart-2: #064e3b;
+  --cb-chart-3: #7c3aed;
+  --cb-chart-4: #d97706;
+  --cb-chart-5: #2563eb;
+  --cb-shadow: 0 18px 48px rgb(15 23 42 / 8%);
+  background: var(--cb-background);
+  color: var(--cb-foreground);
 }
 
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --cb-background: #071511;
+  --cb-foreground: #e5f3ed;
+  --cb-surface: #0e211a;
+  --cb-muted: #142a22;
+  --cb-muted-foreground: #a4b9af;
+  --cb-primary: #34d399;
+  --cb-primary-foreground: #062b20;
+  --cb-secondary: #5eead4;
+  --cb-accent: #6ee7b7;
+  --cb-border: #294439;
+  --cb-input: #426253;
+  --cb-ring: #5eead4;
+  --cb-success: #4ade80;
+  --cb-warning: #fbbf24;
+  --cb-destructive: #f87171;
+  --cb-chart-1: #5eead4;
+  --cb-chart-2: #86efac;
+  --cb-chart-3: #c4b5fd;
+  --cb-chart-4: #fcd34d;
+  --cb-chart-5: #93c5fd;
+  --cb-shadow: 0 22px 55px rgb(0 0 0 / 28%);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--cb-background);
+  color: var(--cb-foreground);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: var(--cb-primary-foreground);
+  background: var(--cb-primary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--cb-ring);
+  outline-offset: 3px;
+}
+
+.financial-value {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.035em;
+}
+
+.surface-shadow {
+  box-shadow: var(--cb-shadow);
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-160%);
+  border-radius: 0.75rem;
+  background: var(--cb-primary);
+  padding: 0.75rem 1rem;
+  color: var(--cb-primary-foreground);
+  font-weight: 700;
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.chart-tooltip {
+  border: 1px solid var(--cb-border);
+  border-radius: 0.85rem;
+  background: var(--cb-surface);
+  padding: 0.75rem 0.9rem;
+  color: var(--cb-foreground);
+  box-shadow: var(--cb-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
