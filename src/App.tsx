@@ -129,6 +129,20 @@ const router = createBrowserRouter([
         },
       },
       {
+        path: 'capture',
+        lazy: async () => {
+          const { SmartCapturePage } = await import('./features/transactions/SmartCapturePage')
+          return { Component: SmartCapturePage }
+        },
+      },
+      {
+        path: 'transactions/receipt',
+        lazy: async () => {
+          const { SmartCapturePage } = await import('./features/transactions/SmartCapturePage')
+          return { Component: SmartCapturePage }
+        },
+      },
+      {
         path: 'assistant',
         lazy: async () => {
           const { AssistantPage } = await import('./features/assistant/AssistantPage')

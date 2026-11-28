@@ -9,6 +9,11 @@ import { PageMeta } from '../../components/common/PageMeta'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { inputClasses, selectClasses } from '../../components/ui/fields'
+import {
+  businessTimeZoneOptions,
+  getCountryTimeZoneDefault,
+  resolveBusinessTimeZone,
+} from '../../lib/time/timezone'
 
 const initialDraft: BusinessInput & { timezone: string; cloudSyncConsent: false } = {
   name: '',
@@ -24,7 +29,12 @@ const initialDraft: BusinessInput & { timezone: string; cloudSyncConsent: false 
 function loadDraft(uid: string): typeof initialDraft {
   try {
     const stored = window.localStorage.getItem(`creditbridge.onboarding.${uid}`)
-    if (stored) return { ...initialDraft, ...JSON.parse(stored) }
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<typeof initialDraft>
+      const draft = { ...initialDraft, ...parsed }
+      const timeZone = resolveBusinessTimeZone(draft.timezone, draft.country)
+      return { ...draft, timezone: timeZone?.timeZone ?? '' }
+    }
   } catch {
     return initialDraft
   }
@@ -60,11 +70,26 @@ function BusinessOnboardingForm({ uid }: { uid: string }) {
     setError('')
   }
 
+  function updateCountry(country: string) {
+    setDraft((current) => ({
+      ...current,
+      country,
+      timezone: getCountryTimeZoneDefault(country) ?? '',
+    }))
+    setError('')
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (step < 5) {
       if (step === 1 && (draft.name.trim().length < 2 || draft.sector.trim().length < 2)) {
         setError(french ? 'Saisissez le nom et le secteur de votre entreprise.' : 'Enter your business name and sector.')
+        return
+      }
+      if (step === 2 && !resolveBusinessTimeZone(draft.timezone, draft.country)) {
+        setError(french
+          ? 'Choisissez un fuseau horaire IANA valide pour votre entreprise.'
+          : 'Choose a valid IANA timezone for your business.')
         return
       }
       if (step === 3 && draft.financialGoals.length === 0) {
@@ -79,7 +104,7 @@ function BusinessOnboardingForm({ uid }: { uid: string }) {
     setError('')
     try {
       const businessId = crypto.randomUUID()
-      await completeBusinessOnboarding(uid, businessId, {
+      const savedBusiness = await completeBusinessOnboarding(uid, businessId, {
         name: draft.name,
         sector: draft.sector,
         businessType: draft.businessType,
@@ -96,7 +121,7 @@ function BusinessOnboardingForm({ uid }: { uid: string }) {
         businessType: draft.businessType,
         country: draft.country,
         currency: draft.currency,
-        timezone: draft.timezone,
+        timezone: savedBusiness.timezone,
         financialGoals: draft.financialGoals,
         updatedAt: Date.now(),
         schemaVersion: 1,
@@ -125,6 +150,12 @@ function BusinessOnboardingForm({ uid }: { uid: string }) {
     ? ['Tenir des registres quotidiens', 'Comprendre les revenus et dépenses', 'Préparer des documents', 'Apprendre les bases financières']
     : ['Keep clearer daily records', 'Understand income and expenses', 'Prepare business documentation', 'Learn financial basics']
   const label = 'grid gap-1.5 text-xs font-semibold text-foreground'
+  const timeZoneOptions = [
+    ...businessTimeZoneOptions,
+    ...(draft.timezone && !businessTimeZoneOptions.some(({ value }) => value === draft.timezone)
+      ? [{ value: draft.timezone, label: draft.timezone }]
+      : []),
+  ]
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6" id="main-content">
@@ -137,7 +168,7 @@ function BusinessOnboardingForm({ uid }: { uid: string }) {
         <form className="grid gap-5" onSubmit={submit}>
           {step === 0 && <><h1 className="font-display text-2xl font-extrabold">{french ? 'Bienvenue dans votre espace' : 'Welcome to your workspace'}</h1><p className="text-sm leading-6 text-muted-foreground">{french ? 'Configurez votre activité une seule fois. Les données financières restent locales.' : 'Set up your business once. Financial data remains local by default.'}</p></>}
           {step === 1 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Informations professionnelles' : 'Business information'}</h1><label className={label}>{french ? 'Nom de l’entreprise' : 'Business name'}<input className={inputClasses} maxLength={80} onChange={(event) => update('name', event.target.value)} value={draft.name} /></label><label className={label}>{french ? 'Secteur' : 'Sector'}<input className={inputClasses} maxLength={60} onChange={(event) => update('sector', event.target.value)} value={draft.sector} /></label><label className={label}>{french ? 'Type d’activité' : 'Business type'}<select className={selectClasses} onChange={(event) => update('businessType', event.target.value as typeof draft.businessType)} value={draft.businessType}><option value="sole-trader">{french ? 'Entrepreneur individuel' : 'Sole trader'}</option><option value="family-business">{french ? 'Entreprise familiale' : 'Family business'}</option><option value="small-team">{french ? 'Petite équipe' : 'Small team'}</option></select></label></>}
-          {step === 2 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Pays et devise' : 'Country and currency'}</h1><label className={label}>{french ? 'Pays' : 'Country'}<input className={inputClasses} onChange={(event) => update('country', event.target.value)} value={draft.country} /></label><label className={label}>{french ? 'Devise' : 'Currency'}<select className={selectClasses} onChange={(event) => update('currency', event.target.value as typeof draft.currency)} value={draft.currency}>{['MAD','XAF','XOF','EUR','USD'].map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label className={label}>{french ? 'Fuseau horaire' : 'Timezone'}<input className={inputClasses} onChange={(event) => update('timezone', event.target.value)} value={draft.timezone} /></label></>}
+          {step === 2 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Pays et devise' : 'Country and currency'}</h1><label className={label}>{french ? 'Pays' : 'Country'}<input className={inputClasses} onChange={(event) => updateCountry(event.target.value)} value={draft.country} /></label><label className={label}>{french ? 'Devise' : 'Currency'}<select className={selectClasses} onChange={(event) => update('currency', event.target.value as typeof draft.currency)} value={draft.currency}>{['MAD','XAF','XOF','EUR','USD'].map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label className={label}>{french ? 'Fuseau horaire' : 'Timezone'}<select className={selectClasses} onChange={(event) => update('timezone', event.target.value)} value={draft.timezone}><option value="">{french ? 'Sélectionnez un fuseau horaire' : 'Select a timezone'}</option>{timeZoneOptions.map((item) => <option key={item.value} value={item.value}>{item.value} · {item.label}</option>)}</select></label><p className="text-xs text-muted-foreground">{french ? 'Le pays propose un fuseau par défaut ; choisissez une autre région si nécessaire.' : 'The country suggests a default timezone; select another region if needed.'}</p></>}
           {step === 3 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Vos objectifs financiers' : 'Financial objectives'}</h1><div className="grid gap-2">{goals.map((goal) => { const checked = draft.financialGoals.includes(goal); return <label className={`flex min-h-12 items-center gap-3 rounded-xl border px-3.5 ${checked ? 'border-primary/40 bg-primary/5' : 'border-border'}`} key={goal}><input checked={checked} className="size-4 accent-primary" onChange={() => update('financialGoals', checked ? draft.financialGoals.filter((item) => item !== goal) : [...draft.financialGoals, goal])} type="checkbox" /><span className="flex-1 text-sm">{goal}</span>{checked && <Check className="text-primary" size={16} />}</label> })}</div></>}
           {step === 4 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Confidentialité locale' : 'Privacy preferences'}</h1><p className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6">{french ? 'Le profil professionnel est enregistré dans Firestore. Les transactions restent dans IndexedDB sur cet appareil. La synchronisation financière reste désactivée.' : 'Business metadata is stored in Firestore. Transactions remain in IndexedDB on this device. Financial synchronization remains disabled.'}</p></>}
           {step === 5 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Confirmez votre configuration' : 'Review your setup'}</h1><dl className="grid gap-3 rounded-xl border border-border p-4 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Entreprise' : 'Business'}</dt><dd className="font-bold">{draft.name}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Secteur' : 'Sector'}</dt><dd className="font-bold">{draft.sector}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Devise' : 'Currency'}</dt><dd className="font-bold">{draft.currency}</dd></div></dl></>}

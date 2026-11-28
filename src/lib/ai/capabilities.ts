@@ -6,10 +6,12 @@ export type DeviceModelAvailability =
 
 interface PromptApi {
   availability(options?: {
-    expectedInputs?: Array<{ type: 'text'; languages?: string[] }>
+    expectedInputs?: Array<{ type: 'text' | 'image'; languages?: string[] }>
     expectedOutputs?: Array<{ type: 'text'; languages?: string[] }>
   }): Promise<string>
 }
+
+export type DeviceModelInput = 'text' | 'image'
 
 function getPromptApi(): PromptApi | undefined {
   return (globalThis as typeof globalThis & { LanguageModel?: PromptApi }).LanguageModel
@@ -17,6 +19,7 @@ function getPromptApi(): PromptApi | undefined {
 
 export async function getDeviceModelAvailability(
   language: 'en' | 'fr' = 'en',
+  inputType: DeviceModelInput = 'text',
 ): Promise<DeviceModelAvailability> {
   const promptApi = getPromptApi()
   if (!promptApi || typeof promptApi.availability !== 'function') {
@@ -29,7 +32,12 @@ export async function getDeviceModelAvailability(
 
   try {
     const options = {
-      expectedInputs: [{ type: 'text' as const, languages: [language] }],
+      expectedInputs: inputType === 'image'
+        ? [
+            { type: 'text' as const, languages: [language] },
+            { type: 'image' as const },
+          ]
+        : [{ type: 'text' as const, languages: [language] }],
       expectedOutputs: [{ type: 'text' as const, languages: [language] }],
     }
     const availability = await promptApi.availability(options)

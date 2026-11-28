@@ -45,6 +45,24 @@ test('sensitive cloud inference is blocked before the model callback runs', asyn
   assert.equal(modelCalls, 0)
 })
 
+test('receipt contents cannot request cloud inference even with consent', async () => {
+  let modelCalls = 0
+  await assert.rejects(
+    runUnderPrivacyPolicy(
+      {
+        classification: 'receipt_contents',
+        mode: 'only_in_cloud',
+        cloudConsent: true,
+      },
+      async () => {
+        modelCalls += 1
+      },
+    ),
+    (error) => error?.code === 'SENSITIVE_DATA_ON_DEVICE_ONLY',
+  )
+  assert.equal(modelCalls, 0)
+})
+
 test('cloud-capable inference requires fresh explicit consent', async () => {
   let modelCalls = 0
 
@@ -110,6 +128,13 @@ test('malformed JSON and invalid transaction shapes are rejected', () => {
   assert.equal(
     parseTransactionExtraction(
       JSON.stringify({ transactions: [transaction({ amount: -1 })] }),
+      'expense',
+    ).success,
+    false,
+  )
+  assert.equal(
+    parseTransactionExtraction(
+      JSON.stringify({ transactions: [{ type: 'expense', amount: 10 }] }),
       'expense',
     ).success,
     false,

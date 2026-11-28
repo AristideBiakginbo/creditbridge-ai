@@ -10,6 +10,9 @@ export const localTransactionSchema = z.object({
   currency: z.enum(currencies),
   category: z.string().trim().min(2).max(48),
   description: z.string().trim().min(2).max(140),
+  notes: z.string().trim().max(500).optional(),
+  merchant: z.string().trim().max(120).optional(),
+  receiptReference: z.string().trim().max(120).optional(),
   transactionDate: z.iso.date(),
   source: z.enum(['manual', 'ai']),
   createdAt: z.number().int().nonnegative(),
@@ -18,7 +21,20 @@ export const localTransactionSchema = z.object({
 })
 
 export type LocalTransaction = z.infer<typeof localTransactionSchema>
-export type LocalTransactionInput = Omit<
-  LocalTransaction,
-  'id' | 'ownerId' | 'businessId' | 'createdAt' | 'updatedAt' | 'schemaVersion'
->
+export const localTransactionInputSchema = localTransactionSchema.omit({
+  id: true,
+  ownerId: true,
+  businessId: true,
+  createdAt: true,
+  updatedAt: true,
+  schemaVersion: true,
+})
+export type LocalTransactionInput = z.infer<typeof localTransactionInputSchema>
+
+export interface LocalTransactionBatch {
+  id: string
+  ownerId: string
+  businessId: string
+  transactionIds: string[]
+  createdAt: number
+}

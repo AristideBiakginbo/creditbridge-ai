@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { LocalTransaction } from './schema.ts'
+import type { LocalTransaction, LocalTransactionBatch } from './schema.ts'
 
 export interface LocalProfile {
   uid: string
@@ -39,6 +39,7 @@ export class CreditBridgeDatabase extends Dexie {
   profiles!: EntityTable<LocalProfile, 'uid'>
   businesses!: EntityTable<LocalBusiness, 'id'>
   transactions!: EntityTable<LocalTransaction, 'id'>
+  batches!: EntityTable<LocalTransactionBatch, 'id'>
   preferences!: EntityTable<LocalPreference, 'id'>
 
   constructor(name = 'creditbridge-local-v1') {
@@ -48,6 +49,9 @@ export class CreditBridgeDatabase extends Dexie {
       businesses: 'id, ownerId, updatedAt',
       transactions: 'id, ownerId, businessId, [ownerId+businessId], transactionDate, type, category, updatedAt, [ownerId+businessId+transactionDate]',
       preferences: 'id, ownerId, updatedAt',
+    })
+    this.version(2).stores({
+      batches: 'id, ownerId, businessId, createdAt',
     })
   }
 }

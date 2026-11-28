@@ -2,6 +2,7 @@ export { getDeviceModelAvailability } from './capabilities'
 export { AIServiceError } from './errors'
 export {
   extractPrivateTransactions,
+  extractPrivateReceipt,
   prepareOnDeviceModel,
   runPlaygroundScenario,
 } from './hybridAI'
@@ -25,3 +26,4 @@ export type {
   PlaygroundResult,
 } from './types'
 export type { DeviceModelAvailability } from './capabilities'
+export type { DeviceModelInput } from './capabilities'

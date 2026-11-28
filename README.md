@@ -19,6 +19,15 @@ the Firebase and hybrid-AI services:
 - A dashboard and transaction manager backed by one labeled synthetic dataset.
 - Local demonstration transaction create, edit, delete, reset, filtering,
   sorting, pagination, and MAD-only manual entry.
+- An authenticated local workspace with account- and business-scoped
+  transaction create, read, update, delete, search, filters, pagination, bulk
+  deletion, and local CSV export.
+- Smart Capture for text notes and receipt images. Proposals are validated,
+  editable, checked for possible duplicates, and saved only after explicit
+  confirmation through an atomic local batch.
+- A real dashboard calculated from the selected business's IndexedDB records,
+  with currency-aware totals, period filters, comparisons, recent activity,
+  and expense-category visualizations.
 - A private transaction extraction path hard-restricted to
   `ONLY_ON_DEVICE`; it discards outputs unless the SDK reports on-device
   inference. Reviewed records are added only after explicit user confirmation.
@@ -33,10 +42,10 @@ are synthetic and denominated in MAD. Real authentication and account workspaces
 are separate from this demonstration repository. No financial cloud
 synchronization is connected.
 
-The Financial Passport, loan simulator, advanced analytics, budgets, debts,
-notifications, and account settings remain clearly labeled previews. There is
-no automated credit eligibility decision, generated credit score, or
-certified financial document.
+The Financial Passport, loan simulator, advanced analytics, budgets, debts, and
+notifications remain clearly labeled previews. Account settings support the
+display name and business timezone. There is no automated credit eligibility
+decision, generated credit score, or certified financial document.
 
 ## Architecture and privacy boundary
 
@@ -54,11 +63,47 @@ contains the synthetic dataset, local repository, and onboarding validation.
 Demo data mutations validate before writing and report local-storage errors;
 they never silently fall back to a cloud or alternate store.
 
+The authenticated workspace uses Dexie/IndexedDB, scoped by authenticated UID
+and active business ID. It supports MAD, XAF, XOF, EUR, and USD; amounts are
+stored as integer minor units (XAF/XOF use zero decimal places, the other
+supported currencies use two). Totals and charts never combine currencies.
+Transaction batches are validated before an IndexedDB transaction, and a
+local idempotency record prevents retrying a confirmed capture batch from
+creating another copy. This local batch marker is metadata, not cloud sync.
+
+Smart Capture calls the existing Firebase AI Logic service boundary with
+`ONLY_ON_DEVICE` for private transaction text and receipt contents. It discards
+results unless the SDK reports `on-device`, validates the structured response,
+and requires human review before local persistence. Cloud inference is never
+used as a fallback for these inputs. Receipt images are restricted to JPEG/PNG,
+decoded and dimension-checked in the browser, kept in memory, and never written
+to IndexedDB or uploaded. The installed SDK supports multimodal on-device Web
+inference on desktop Chrome 139+ when the browser's image-input capability is
+available; actual model availability depends on the user's browser/device and
+was not verified in this environment. When unavailable, the UI offers manual
+transcription and manual transaction entry. Receipt proposals require the user
+to confirm the currency explicitly.
+
+The income/expense register is a simple cash-flow record, not full accrual
+accounting. It does not model receivables or link a customer payment to an
+original credit sale. Avoid recording payment for a sale again as income if
+that sale was already counted.
+
 The app reports inference source only when Firebase AI Logic includes it in the
 SDK response. A requested mode is not treated as proof of where inference ran.
 Sensitive extraction results are discarded if the source is missing or not
 on-device. App Check initialization and token acquisition do not prove that
 Firebase project enforcement is enabled.
+
+Business-local date calculations validate IANA timezone identifiers before
+formatting. The legacy `Africa/Rabat` identifier is normalized to
+`Africa/Casablanca` in memory; known country defaults are used only for
+recognized countries. Unknown invalid values require correction in account
+settings, where only the authenticated owner's business timezone and server
+`updatedAt` are updated. Smart Capture and the dashboard read their business
+metadata from the local Dexie cache, so an out-of-band Firestore correction
+does not refresh that cache automatically; these read boundaries normalize
+legacy values before use. No transaction dates or records are migrated.
 
 ## Local setup
 
@@ -98,8 +143,9 @@ implemented with Dexie.
 - Firestore profiles: `users/{uid}`.
 - Business profiles: `users/{uid}/businesses/{businessId}`.
 - Preferences: `users/{uid}/preferences/settings`.
-- Financial transactions remain local only. The Firestore rules deny financial
-  transaction collections and unknown collections.
+- Financial transactions remain local only in account/business-scoped
+  IndexedDB. The Firestore rules deny financial transaction collections and
+  unknown collections. Cloud financial synchronization is not implemented.
 - Monetary amounts use integer minor units. MAD, EUR, and USD use two decimal
   places; XAF and XOF use zero decimal places.
 - The demonstration workspace remains at `/demo` and cannot access account
@@ -143,14 +189,29 @@ The tests cover the sensitive-data policy gate, explicit cloud consent,
 transaction schema validation, malformed responses, multiple transactions,
 ambiguous currency, dashboard calculations, local demo repository operations,
 onboarding privacy defaults, authentication error mapping, currency precision,
-and Dexie persistence/account/business isolation. `npm run build` type-checks
-and builds the app.
+Dexie persistence/account/business isolation, atomic and idempotent batch
+insertion, duplicate detection, date/currency-aware calculations, filters, and
+CSV formula-injection handling. Timezone tests cover legacy alias handling,
+country defaults, invalid and missing zones, and business-local midnight
+boundaries. Firestore emulator tests require Java and the
+Firebase CLI; the default `npm test` run skips those cases when no emulator is
+active. `npm run build` type-checks and builds the app.
 
 ## Manual checks and limitations
 
 - Open `/` for the public site, `/onboarding` for the non-persistent setup
-  preview, `/app/dashboard` for the synthetic workspace, and
-  `/app/transactions` to edit/reset its local records.
+  preview, and `/demo/dashboard` for the isolated synthetic workspace.
+- In an authenticated account with an active business, use `/app/dashboard`
+  for actual local records, `/app/transactions` for CRUD/search/filter/export,
+  `/app/capture` for Smart Capture, or `/app/capture?mode=receipt` to scan a
+  receipt. Smart Capture requires explicit review and confirmation.
+- Correct the business timezone in `/app/settings` if it is invalid. The
+  country default is a suggestion, not a restriction on other regions within
+  multi-timezone countries.
+- Verify on-device text/image availability before attempting extraction.
+  Receipt image inference requires desktop Chrome 139+ with multimodal image
+  input available. No successful inference is claimed until the SDK returns
+  and confirms its source. Use manual entry when the local model is unavailable.
 - Open `/dev/hybrid-ai` only on a Vite development server; that diagnostic
   route is excluded from production routing and initial page chunks.
 - Verify the App Check token diagnostic in the development playground only

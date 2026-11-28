@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowDownUp, LayoutDashboard, LogOut, Menu, MessageCircle, Settings, Shield, X } from 'lucide-react'
+import { ArrowDownUp, LayoutDashboard, LogOut, Menu, MessageCircle, Settings, Shield, WandSparkles, X } from 'lucide-react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../providers/useAuth'
 import { useLanguage } from '../providers/useLanguage'
@@ -7,11 +7,12 @@ import { Brand } from '../../components/brand/Brand'
 import { LanguageControl, ThemeControl } from '../../components/common/ThemeLanguageControls'
 
 const items = [
-  { path: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: 'transactions', icon: ArrowDownUp, label: 'Transactions' },
-  { path: 'assistant', icon: MessageCircle, label: 'AI Assistant' },
-  { path: 'settings', icon: Settings, label: 'Settings' },
-  { path: 'privacy', icon: Shield, label: 'Privacy' },
+  { path: 'dashboard', icon: LayoutDashboard, en: 'Dashboard', fr: 'Tableau de bord' },
+  { path: 'transactions', icon: ArrowDownUp, en: 'Transactions', fr: 'Transactions' },
+  { path: 'capture', icon: WandSparkles, en: 'Smart Capture', fr: 'Saisie intelligente' },
+  { path: 'assistant', icon: MessageCircle, en: 'AI Assistant', fr: 'Assistant IA' },
+  { path: 'settings', icon: Settings, en: 'Settings', fr: 'Paramètres' },
+  { path: 'privacy', icon: Shield, en: 'Privacy', fr: 'Confidentialité' },
 ] as const
 
 export function RealWorkspaceLayout() {
@@ -28,14 +29,14 @@ export function RealWorkspaceLayout() {
 
   const nav = (
     <nav aria-label={french ? 'Navigation principale' : 'Primary navigation'} className="grid gap-1">
-      {items.map(({ path, icon: Icon }) => (
+      {items.map(({ path, icon: Icon, en, fr: frenchLabel }) => (
         <NavLink
           className={({ isActive }) => `flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           key={path}
           onClick={() => setOpen(false)}
           to={`/app/${path}`}
         >
-          <Icon size={18} />{french && path === 'dashboard' ? 'Tableau de bord' : french && path === 'transactions' ? 'Transactions' : french && path === 'assistant' ? 'Assistant IA' : french && path === 'settings' ? 'Paramètres' : french && path === 'privacy' ? 'Confidentialité' : path === 'dashboard' ? 'Dashboard' : path === 'transactions' ? 'Transactions' : path === 'assistant' ? 'AI Assistant' : path === 'settings' ? 'Settings' : 'Privacy'}
+          <Icon size={18} />{french ? frenchLabel : en}
         </NavLink>
       ))}
     </nav>
