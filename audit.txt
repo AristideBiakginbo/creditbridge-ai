@@ -1,0 +1,244 @@
+
+===== Git =====
+main
+?? audit.txt
+?? scripts/
+
+===== Structure (src, 3 niveaux) =====
+src
+src/app
+src/App.css
+src/App.tsx
+src/app/layouts
+src/app/layouts/DemoWorkspaceLayout.tsx
+src/app/layouts/PublicLayout.tsx
+src/app/providers
+src/app/providers/demoDataContext.ts
+src/app/providers/DemoDataProvider.tsx
+src/app/providers/languageContext.ts
+src/app/providers/LanguageProvider.tsx
+src/app/providers/themeContext.ts
+src/app/providers/ThemeProvider.tsx
+src/app/providers/useDemoData.ts
+src/app/providers/useLanguage.ts
+src/app/providers/useTheme.ts
+src/assets
+src/assets/hero.png
+src/assets/react.svg
+src/assets/vite.svg
+src/components
+src/components/brand
+src/components/brand/Brand.tsx
+src/components/common
+src/components/common/ChartCard.tsx
+src/components/common/Dialog.tsx
+src/components/common/NetworkStatus.tsx
+src/components/common/PageHeader.tsx
+src/components/common/PageMeta.tsx
+src/components/common/RouteErrorPage.tsx
+src/components/common/RouteLoadingScreen.tsx
+src/components/common/StatCard.tsx
+src/components/common/ThemeLanguageControls.tsx
+src/components/StatusCard.tsx
+src/components/ui
+src/components/ui/Badge.tsx
+src/components/ui/Button.tsx
+src/components/ui/buttonStyles.ts
+src/components/ui/Card.tsx
+src/components/ui/fields.ts
+src/demo
+src/demo/data
+src/demo/data/seedTransactions.ts
+src/demo/repository.ts
+src/demo/validation
+src/demo/validation/onboardingSchema.ts
+src/features
+src/features/ai-playground
+src/features/ai-playground/HybridAIPlayground.tsx
+src/features/ai-playground/ManualTransactionEntry.tsx
+src/features/ai-playground/PrivateTransactionEntry.tsx
+src/features/ai-playground/TransactionReview.tsx
+src/features/assistant
+src/features/assistant/AssistantPage.tsx
+src/features/auth
+src/features/auth/LoginPreviewPage.tsx
+src/features/dashboard
+src/features/dashboard/DashboardPage.tsx
+src/features/landing
+src/features/landing/InfoPage.tsx
+src/features/landing/LandingPage.tsx
+src/features/landing/NotFoundPage.tsx
+src/features/onboarding
+src/features/onboarding/OnboardingPreviewPage.tsx
+src/features/transactions
+src/features/transactions/NewTransactionPage.tsx
+src/features/transactions/TransactionForm.tsx
+src/features/transactions/TransactionsPage.tsx
+src/features/workspace
+src/features/workspace/UpcomingPage.tsx
+src/i18n
+src/i18n/messages.ts
+src/index.css
+src/lib
+src/lib/ai
+src/lib/ai/capabilities.ts
+src/lib/ai/errors.ts
+src/lib/ai/hybridAI.ts
+src/lib/ai/index.ts
+src/lib/ai/privacyPolicy.ts
+src/lib/ai/scenarios.ts
+src/lib/ai/schemas.ts
+src/lib/ai/types.ts
+src/lib/appCheck.ts
+src/lib/finance
+src/lib/finance/calculations.ts
+src/lib/firebase.ts
+src/main.tsx
+src/vite-env.d.ts
+
+===== Versions cl├®s (package.json) =====
+react                ^19.3.1
+typescript           ~7.0.2
+vite                 ^8.3.6
+tailwindcss          ^4.3.5
+vite-plugin-pwa      ÔÇö absent
+workbox-window       ÔÇö absent
+dexie                ^4.4.7
+firebase             ^13.4.0
+zod                  ^4.6.7
+vitest               ÔÇö absent
+jest                 ÔÇö absent
+@playwright/test     ÔÇö absent
+
+scripts: {
+  dev: 'vite',
+  build: 'tsc -b && vite build',
+  lint: 'oxlint',
+  test: 'node --experimental-strip-types --test tests/*.test.mjs',
+  preview: 'vite preview'
+}
+
+===== Firebase install├® (doit ├¬tre >= 12.5.0 pour inferenceSource) =====
+13.4.0
+
+===== Types du SDK : InferenceMode / initializeDeviceModel / inferenceSource =====
+ONLY_IN_CLOUD
+ONLY_ON_DEVICE
+PREFER_IN_CLOUD
+PREFER_ON_DEVICE
+613:    inferenceSource?: InferenceSource;
+1118:    initializeDeviceModel(onDownloadProgress?: (progressValue: number) => void): Promise<void>;
+1739:     * to {@link GenerativeModel.initializeDeviceModel} instead.
+
+===== Usages Firebase / IA dans le code =====
+src/features/ai-playground/HybridAIPlayground.tsx:22:  type InferenceMode,
+src/features/ai-playground/HybridAIPlayground.tsx:39:const modes: Array<{ value: InferenceMode; label: string; description: string }> = [
+src/features/ai-playground/HybridAIPlayground.tsx:72:  const [mode, setMode] = useState<InferenceMode>('only_on_device')
+src/features/assistant/AssistantPage.tsx:16:import type { InferenceMode, InferenceMetadata, PlaygroundResult } from '../../lib/ai/types'
+src/features/assistant/AssistantPage.tsx:24:  const [mode, setMode] = useState<InferenceMode>('only_on_device')
+src/features/assistant/AssistantPage.tsx:48:  function chooseMode(nextMode: InferenceMode) {
+src/lib/ai/hybridAI.ts:2:  getAI,
+src/lib/ai/hybridAI.ts:3:  getGenerativeModel,
+src/lib/ai/hybridAI.ts:5:  InferenceMode,
+src/lib/ai/hybridAI.ts:8:} from 'firebase/ai'
+src/lib/ai/hybridAI.ts:18:import type { InferenceMetadata, InferenceMode as InferencePolicy, PlaygroundResult } from './types'
+src/lib/ai/hybridAI.ts:49:  const ai = getAI(firebaseApp, {
+src/lib/ai/hybridAI.ts:60:    return getGenerativeModel(ai, {
+src/lib/ai/hybridAI.ts:79:  return getGenerativeModel(ai, {
+src/lib/ai/hybridAI.ts:144:      if (request.mode !== InferenceMode.ONLY_ON_DEVICE) {
+src/lib/ai/hybridAI.ts:159:        if (request.mode === InferenceMode.ONLY_ON_DEVICE) {
+src/lib/ai/hybridAI.ts:218:  const model = buildModel(InferenceMode.ONLY_ON_DEVICE, language, false)
+src/lib/ai/hybridAI.ts:332:    InferenceMode.ONLY_ON_DEVICE,
+src/lib/ai/hybridAI.ts:361:          mode: InferenceMode.ONLY_IN_CLOUD,
+src/lib/ai/index.ts:23:  InferenceMode,
+src/lib/ai/privacyPolicy.ts:1:import type { InferenceMode } from './types'
+src/lib/ai/privacyPolicy.ts:16:  mode: InferenceMode
+src/lib/ai/types.ts:1:import type { InferenceMode } from 'firebase/ai'
+src/lib/ai/types.ts:3:export type { InferenceMode }
+src/lib/ai/types.ts:9:  requestedMode: InferenceMode
+src/lib/ai/types.ts:42:  mode: InferenceMode
+src/lib/appCheck.ts:6:} from 'firebase/app-check'
+
+===== IndexedDB / Dexie =====
+
+===== Zod / validation =====
+src/demo/repository.ts
+src/demo/validation/onboardingSchema.ts
+src/lib/ai/schemas.ts
+
+===== PWA / Service Worker =====
+brand
+favicon.svg
+icons.svg
+
+===== Tests =====
+
+===== Variables d'environnement (noms uniquement) =====
+-- .env.local
+VITE_FIREBASE_API_KEY=<masqu├®>
+VITE_FIREBASE_AUTH_DOMAIN=<masqu├®>
+VITE_FIREBASE_PROJECT_ID=<masqu├®>
+VITE_FIREBASE_STORAGE_BUCKET=<masqu├®>
+VITE_FIREBASE_MESSAGING_SENDER_ID=<masqu├®>
+VITE_FIREBASE_APP_ID=<masqu├®>
+VITE_FIREBASE_RECAPTCHA_SITE_KEY=<masqu├®>
+-- .env.example
+VITE_FIREBASE_API_KEY=<masqu├®>
+VITE_FIREBASE_AUTH_DOMAIN=<masqu├®>
+VITE_FIREBASE_PROJECT_ID=<masqu├®>
+VITE_FIREBASE_STORAGE_BUCKET=<masqu├®>
+VITE_FIREBASE_MESSAGING_SENDER_ID=<masqu├®>
+VITE_FIREBASE_APP_ID=<masqu├®>
+VITE_FIREBASE_RECAPTCHA_SITE_KEY=<masqu├®>
+-- .env ignor├® par git ?
+.gitignore:27:.env	.env
+.gitignore:28:.env.local	.env.local
+
+===== Secrets potentiellement expos├®s (motifs, sans afficher la valeur) =====
+aucun motif trouv├®
+
+===== Firestore / Hosting =====
+.firebaserc
+firebase.json
+
+===== Racine du d├®p├┤t, d├®ploiement, routage =====
+v26.13.1
+11.20.0
+.firebaserc
+.gitignore
+firebase.json
+LICENSE
+README.md
+tsconfig.app.json
+tsconfig.json
+tsconfig.node.json
+vite.config.ts
+-- h├®bergement (Vercel ou Firebase Hosting ?)
+vercel.json absent
+2:  "hosting": {
+-- TypeScript strict ?
+-- routage
+src/app/layouts/DemoWorkspaceLayout.tsx:29:} from 'react-router-dom'
+src/app/layouts/PublicLayout.tsx:2:import { Link, Outlet } from 'react-router-dom'
+src/App.tsx:2:import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
+src/App.tsx:8:const router = createBrowserRouter([
+src/components/common/RouteErrorPage.tsx:1:import { isRouteErrorResponse, Link, useRouteError } from 'react-router-dom'
+-- r├®pertoires cibles pr├®sents (docs/ tests/)
+tests
+
+===== Build et typage =====
+dist/assets/UpcomingPage-Cywvrd6j.js             4.40 kB Ôöé gzip:   1.95 kB
+dist/assets/PublicLayout-CLPh09JZ.js             4.73 kB Ôöé gzip:   1.53 kB
+dist/assets/InfoPage-CkxK_eio.js                 8.64 kB Ôöé gzip:   3.64 kB
+dist/assets/OnboardingPreviewPage-DIZJ2fgx.js   10.17 kB Ôöé gzip:   3.54 kB
+dist/assets/DemoWorkspaceLayout-B2efJIka.js     16.06 kB Ôöé gzip:   5.10 kB
+dist/assets/TransactionsPage-BYqdeWun.js        16.19 kB Ôöé gzip:   4.96 kB
+dist/assets/NewTransactionPage-LDaZziYY.js      18.71 kB Ôöé gzip:   6.30 kB
+dist/assets/LandingPage-Rju6oX6P.js             21.18 kB Ôöé gzip:   6.20 kB
+dist/assets/hybridAI-C0G2xFsa.js                46.10 kB Ôöé gzip:  14.62 kB
+dist/assets/schemas-CzPurfhK.js                 85.48 kB Ôöé gzip:  24.35 kB
+dist/assets/AssistantPage-BEDaGy7Q.js          174.09 kB Ôöé gzip:  52.56 kB
+dist/assets/index-BOvyjpuz.js                  377.88 kB Ôöé gzip: 120.38 kB
+dist/assets/DashboardPage-ByDTM_Vs.js          486.58 kB Ôöé gzip: 135.96 kB
+
+[32mÔ£ô built in 5.18s[39m

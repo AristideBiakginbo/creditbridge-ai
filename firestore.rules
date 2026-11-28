@@ -1,0 +1,233 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Data model:
+    // users/{uid}: uid, displayName, email, optional photoURL,
+    // onboardingCompleted, nullable activeBusinessId, createdAt, updatedAt,
+    // schemaVersion. Email is profile metadata, never verification evidence.
+    // users/{uid}/businesses/{businessId}: id, ownerId, name, sector,
+    // businessType, country, currency, timezone, financialGoals, createdAt,
+    // updatedAt, schemaVersion.
+    // users/{uid}/preferences/settings: ownerId, language, theme, syncEnabled,
+    // updatedAt, schemaVersion. syncEnabled is permanently false in this phase.
+    // No financial transaction collection is permitted in Firestore.
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function validTimestamp(value) {
+      return value is timestamp;
+    }
+
+    function validEmail(value) {
+      return value is string
+        && value.size() <= 254
+        && value.matches('^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$');
+    }
+
+    function validPhotoURL(data) {
+      return !('photoURL' in data)
+        || data.photoURL == null
+        || (data.photoURL is string
+          && data.photoURL.size() <= 2048
+          && data.photoURL.matches('^https?://.+'));
+    }
+
+    function validBusiness(data, uid, businessId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'sector', 'businessType', 'country',
+          'currency', 'timezone', 'financialGoals', 'createdAt', 'updatedAt',
+          'schemaVersion'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'sector', 'businessType', 'country',
+          'currency', 'timezone', 'financialGoals', 'createdAt', 'updatedAt',
+          'schemaVersion'
+        ])
+        && data.id == businessId
+        && data.ownerId == uid
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 80
+        && data.sector is string
+        && data.sector.size() >= 2
+        && data.sector.size() <= 60
+        && data.businessType in ['sole-trader', 'family-business', 'small-team']
+        && data.country is string
+        && data.country.size() >= 2
+        && data.country.size() <= 60
+        && data.currency in ['MAD', 'XAF', 'XOF', 'EUR', 'USD']
+        && data.timezone is string
+        && data.timezone.size() >= 2
+        && data.timezone.size() <= 60
+        && data.financialGoals is list
+        && data.financialGoals.size() >= 1
+        && data.financialGoals.size() <= 5
+        && data.financialGoals.toSet().hasOnly([
+          'Keep clearer daily records',
+          'Understand income and expenses',
+          'Prepare business documentation',
+          'Learn financial basics',
+          'Tenir des registres quotidiens',
+          'Comprendre les revenus et dépenses',
+          'Préparer des documents',
+          'Apprendre les bases financières'
+        ])
+        && validTimestamp(data.createdAt)
+        && validTimestamp(data.updatedAt)
+        && data.updatedAt <= request.time
+        && data.createdAt <= data.updatedAt
+        && data.schemaVersion == 1;
+    }
+
+    function activeBusinessIsOwned(uid, businessId) {
+      let businessPath = /databases/$(database)/documents/users/$(uid)/businesses/$(businessId);
+      return businessId is string
+        && businessId.size() >= 1
+        && businessId.size() <= 128
+        && existsAfter(businessPath)
+        && validBusiness(getAfter(businessPath).data, uid, businessId);
+    }
+
+    function ownerProfileExistsAfter(uid) {
+      let profilePath = /databases/$(database)/documents/users/$(uid);
+      return existsAfter(profilePath)
+        && getAfter(profilePath).data.uid == uid;
+    }
+
+    function validUserProfile(data, uid) {
+      return data.keys().hasAll([
+          'uid', 'displayName', 'email', 'onboardingCompleted',
+          'activeBusinessId', 'createdAt', 'updatedAt', 'schemaVersion'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'photoURL', 'onboardingCompleted',
+          'activeBusinessId', 'createdAt', 'updatedAt', 'schemaVersion'
+        ])
+        && data.uid == uid
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 80
+        && (data.email == null
+          || (validEmail(data.email)
+            && request.auth.token.email == data.email))
+        && validPhotoURL(data)
+        && data.onboardingCompleted is bool
+        && ((data.onboardingCompleted == false && data.activeBusinessId == null)
+          || (data.onboardingCompleted == true
+            && activeBusinessIsOwned(uid, data.activeBusinessId)))
+        && validTimestamp(data.createdAt)
+        && validTimestamp(data.updatedAt)
+        && data.updatedAt <= request.time
+        && data.createdAt <= data.updatedAt
+        && data.schemaVersion == 1;
+    }
+
+    function validPreferences(data, uid) {
+      return data.keys().hasAll([
+          'ownerId', 'language', 'theme', 'syncEnabled', 'updatedAt',
+          'schemaVersion'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'language', 'theme', 'syncEnabled', 'updatedAt',
+          'schemaVersion'
+        ])
+        && data.ownerId == uid
+        && data.language in ['en', 'fr']
+        && data.theme in ['system', 'light', 'dark']
+        && data.syncEnabled == false
+        && validTimestamp(data.updatedAt)
+        && data.updatedAt == request.time
+        && data.schemaVersion == 1;
+    }
+
+    match /users/{uid} {
+      allow get, list: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && validUserProfile(request.resource.data, uid)
+        && request.resource.data.onboardingCompleted == false
+        && request.resource.data.activeBusinessId == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isOwner(uid)
+        && validUserProfile(request.resource.data, uid)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.schemaVersion == resource.data.schemaVersion
+        && request.resource.data.updatedAt == request.time
+        && (!resource.data.onboardingCompleted
+          || request.resource.data.onboardingCompleted)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName', 'email', 'photoURL', 'onboardingCompleted',
+          'activeBusinessId', 'updatedAt'
+        ])
+        && request.resource.data.diff(resource.data).affectedKeys().size() > 0;
+
+      allow delete: if false;
+
+      match /businesses/{businessId} {
+        allow get, list: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && ownerProfileExistsAfter(uid)
+          && validBusiness(request.resource.data, uid, businessId)
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+
+        allow update: if isOwner(uid)
+          && ownerProfileExistsAfter(uid)
+          && validBusiness(request.resource.data, uid, businessId)
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.schemaVersion == resource.data.schemaVersion
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'sector', 'businessType', 'country', 'currency', 'timezone',
+            'financialGoals', 'updatedAt'
+          ])
+          && request.resource.data.diff(resource.data).affectedKeys().size() > 0;
+
+        allow delete: if false;
+      }
+
+      match /preferences/{preferenceId} {
+        allow get, list: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && preferenceId == 'settings'
+          && validPreferences(request.resource.data, uid);
+
+        allow update: if isOwner(uid)
+          && preferenceId == 'settings'
+          && validPreferences(request.resource.data, uid)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.schemaVersion == resource.data.schemaVersion
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'language', 'theme', 'updatedAt'
+          ])
+          && request.resource.data.diff(resource.data).affectedKeys().size() > 0;
+
+        allow delete: if false;
+      }
+
+      // Unknown nested collections, including all financial transaction paths,
+      // remain denied.
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

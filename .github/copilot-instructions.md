@@ -89,10 +89,18 @@ features.
   adding reviewed values to the separate synthetic local demo repository.
   Never treat this flow as storage for real financial records. No automated
   lending decisions.
-- Authentication and onboarding are previews only: do not accept credentials,
-  simulate account creation, or persist the onboarding profile. Cloud sync
-  remains off; cloud education consent is request-scoped and never carried
-  forward from onboarding.
+- Firebase Authentication is the account authority. Never store passwords,
+  ID tokens, App Check debug tokens, or raw private AI prompts in application
+  storage.
+- Firestore profile and business documents must be owner-scoped. Financial
+  transaction cloud collections remain denied until a separately authorized
+  synchronization implementation exists.
+- Dexie repositories must be account and business scoped. UI filters alone
+  are not an isolation boundary.
+- Use integer minor units for monetary calculations. Never reinterpret existing
+  transaction amounts when the workspace currency changes.
+- Cloud synchronization is disabled by default and must never be inferred from
+  authentication or stored preferences. Cloud AI consent remains request-scoped.
 - Do not describe documentation readiness as a credit score or credit
   eligibility. Passport and loan features remain previews until implemented.
 - Be explicit about uncertain browser and device support for on-device models.

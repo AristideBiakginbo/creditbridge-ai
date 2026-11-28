@@ -29,9 +29,9 @@ the Firebase and hybrid-AI services:
 
 The demonstration repository uses a dedicated versioned `localStorage` key,
 separate from Firebase, Firestore, and Dexie. All bundled demonstration records
-are synthetic and denominated in MAD. The preview-only login does not accept
-credentials, and onboarding preferences are not persisted. No real account
-storage or cloud synchronization is connected.
+are synthetic and denominated in MAD. Real authentication and account workspaces
+are separate from this demonstration repository. No financial cloud
+synchronization is connected.
 
 The Financial Passport, loan simulator, advanced analytics, budgets, debts,
 notifications, and account settings remain clearly labeled previews. There is
@@ -87,6 +87,50 @@ Start the local development server with:
 npm run dev
 ```
 
+## Phase 4 foundation
+
+Phase 4 adds Firebase email/password and Google authentication, route guards,
+email verification, password recovery, persistent business onboarding, and
+owner-scoped Firestore profile metadata. The real workspace is protected and
+keeps financial transactions in a versioned account-scoped IndexedDB database
+implemented with Dexie.
+
+- Firestore profiles: `users/{uid}`.
+- Business profiles: `users/{uid}/businesses/{businessId}`.
+- Preferences: `users/{uid}/preferences/settings`.
+- Financial transactions remain local only. The Firestore rules deny financial
+  transaction collections and unknown collections.
+- Monetary amounts use integer minor units. MAD, EUR, and USD use two decimal
+  places; XAF and XOF use zero decimal places.
+- The demonstration workspace remains at `/demo` and cannot access account
+  records or write to Firestore.
+- IndexedDB is browser storage, not encrypted storage. Shared-device use,
+  private browsing, eviction, and first-time offline authentication have the
+  limitations described in the Privacy Center.
+
+Firebase Console configuration is still required manually: enable Email/Password
+and Google providers, add authorized domains, and create/provision the
+Firestore database. The CLI session must be reauthenticated before listing or
+deploying remote configuration.
+
+The configured database has been confirmed as Firestore Standard / Native mode.
+Rules require server timestamps, preserve user/business identity and creation
+metadata, and permit onboarding completion only when the corresponding
+owner-scoped business exists after the batch. Financial transaction paths and
+unknown collections are denied. These rules are a prototype and should be
+reviewed before production use.
+
+Run the local Firestore Emulator rules suite with:
+
+```powershell
+npm run test:rules
+```
+
+The suite uses the `demo-creditbridge-rules` demo project ID and never connects
+to or modifies the remote `creditbridge-ai` database. It requires Java and the
+Firebase CLI; the standard test run skips emulator-only cases when no emulator
+is active. Tests use `@firebase/rules-unit-testing`.
+
 ## Validation
 
 ```powershell
@@ -98,8 +142,9 @@ npm run build
 The tests cover the sensitive-data policy gate, explicit cloud consent,
 transaction schema validation, malformed responses, multiple transactions,
 ambiguous currency, dashboard calculations, local demo repository operations,
-and onboarding privacy defaults. `npm run build` type-checks and builds the
-app.
+onboarding privacy defaults, authentication error mapping, currency precision,
+and Dexie persistence/account/business isolation. `npm run build` type-checks
+and builds the app.
 
 ## Manual checks and limitations
 

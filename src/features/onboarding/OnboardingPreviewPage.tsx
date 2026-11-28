@@ -1,216 +1,153 @@
-import { useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, Check, ShieldCheck } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../app/providers/useAuth'
 import { useLanguage } from '../../app/providers/useLanguage'
-import { PageHeader } from '../../components/common/PageHeader'
+import { creditBridgeDatabase, type LocalBusiness } from '../../lib/db/database'
+import { completeBusinessOnboarding, type BusinessInput } from '../../lib/repositories/businessRepository'
 import { PageMeta } from '../../components/common/PageMeta'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { inputClasses, selectClasses } from '../../components/ui/fields'
-import { buttonClasses } from '../../components/ui/buttonStyles'
-import { onboardingSchema, type OnboardingDraft } from '../../demo/validation/onboardingSchema'
 
-const initialDraft: OnboardingDraft = {
-  businessName: '',
+const initialDraft: BusinessInput & { timezone: string; cloudSyncConsent: false } = {
+  name: '',
   sector: '',
   businessType: 'sole-trader',
   country: 'Morocco',
   currency: 'MAD',
-  goals: [],
-  cloudEducationConsent: false,
+  timezone: 'Africa/Casablanca',
+  financialGoals: [],
   cloudSyncConsent: false,
 }
 
-const goals = {
-  en: [
-    'Understand income and expenses',
-    'Keep clearer daily records',
-    'Prepare business documentation',
-    'Learn financial basics',
-    'Explore repayment scenarios',
-  ],
-  fr: [
-    'Comprendre les revenus et dépenses',
-    'Tenir des registres quotidiens plus clairs',
-    'Préparer des documents professionnels',
-    'Apprendre les bases financières',
-    'Explorer des scénarios de remboursement',
-  ],
-} as const
+function loadDraft(uid: string): typeof initialDraft {
+  try {
+    const stored = window.localStorage.getItem(`creditbridge.onboarding.${uid}`)
+    if (stored) return { ...initialDraft, ...JSON.parse(stored) }
+  } catch {
+    return initialDraft
+  }
+  return initialDraft
+}
 
 export function OnboardingPreviewPage() {
-  const { language, t } = useLanguage()
-  const navigate = useNavigate()
-  const french = language === 'fr'
-  const [step, setStep] = useState(0)
-  const [draft, setDraft] = useState<OnboardingDraft>({ ...initialDraft })
-  const [errors, setErrors] = useState<string[]>([])
-  const stepSchemas = [
-    onboardingSchema.pick({ businessName: true, sector: true, businessType: true }),
-    onboardingSchema.pick({ country: true, currency: true }),
-    onboardingSchema.pick({ goals: true, cloudEducationConsent: true, cloudSyncConsent: true }),
-  ] as const
+  const { uid } = useAuth()
+  if (!uid) return null
+  return <BusinessOnboardingForm key={uid} uid={uid} />
+}
 
-  function update<Field extends keyof OnboardingDraft>(
-    field: Field,
-    value: OnboardingDraft[Field],
-  ) {
+function BusinessOnboardingForm({ uid }: { uid: string }) {
+  const { language } = useLanguage()
+  const french = language === 'fr'
+  const navigate = useNavigate()
+  const { refreshProfile } = useAuth()
+  const [step, setStep] = useState(0)
+  const [draft, setDraft] = useState(() => loadDraft(uid))
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(`creditbridge.onboarding.${uid}`, JSON.stringify(draft))
+    } catch {
+      // Onboarding remains usable in memory if browser storage is unavailable.
+    }
+  }, [draft, uid])
+
+  function update<Field extends keyof typeof draft>(field: Field, value: (typeof draft)[Field]) {
     setDraft((current) => ({ ...current, [field]: value }))
-    setErrors([])
+    setError('')
   }
 
-  function submitStep(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
-    const parsed = stepSchemas[step].safeParse(draft)
-    if (!parsed.success) {
-      setErrors(parsed.error.issues.map((issue) => issue.message))
-      return
-    }
-    if (step < 2) {
+    if (step < 5) {
+      if (step === 1 && (draft.name.trim().length < 2 || draft.sector.trim().length < 2)) {
+        setError(french ? 'Saisissez le nom et le secteur de votre entreprise.' : 'Enter your business name and sector.')
+        return
+      }
+      if (step === 3 && draft.financialGoals.length === 0) {
+        setError(french ? 'Sélectionnez au moins un objectif.' : 'Select at least one goal.')
+        return
+      }
       setStep((current) => current + 1)
       return
     }
-    const completeDraft = onboardingSchema.safeParse(draft)
-    if (!completeDraft.success) {
-      setErrors(completeDraft.error.issues.map((issue) => issue.message))
-      return
+    if (!uid) return
+    setBusy(true)
+    setError('')
+    try {
+      const businessId = crypto.randomUUID()
+      await completeBusinessOnboarding(uid, businessId, {
+        name: draft.name,
+        sector: draft.sector,
+        businessType: draft.businessType,
+        country: draft.country,
+        currency: draft.currency,
+        timezone: draft.timezone,
+        financialGoals: draft.financialGoals,
+      })
+      const snapshot: LocalBusiness = {
+        id: businessId,
+        ownerId: uid,
+        name: draft.name,
+        sector: draft.sector,
+        businessType: draft.businessType,
+        country: draft.country,
+        currency: draft.currency,
+        timezone: draft.timezone,
+        financialGoals: draft.financialGoals,
+        updatedAt: Date.now(),
+        schemaVersion: 1,
+      }
+      await creditBridgeDatabase.businesses.put(snapshot)
+      await creditBridgeDatabase.preferences.put({
+        id: `${uid}:settings`,
+        ownerId: uid,
+        language,
+        theme: 'system',
+        syncEnabled: false,
+        updatedAt: Date.now(),
+        schemaVersion: 1,
+      })
+      window.localStorage.removeItem(`creditbridge.onboarding.${uid}`)
+      await refreshProfile()
+      navigate('/app/dashboard', { replace: true })
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : (french ? 'Le profil n’a pas pu être enregistré.' : 'The profile could not be saved.'))
+    } finally {
+      setBusy(false)
     }
-    navigate('/demo')
   }
 
-  function toggleGoal(goal: string) {
-    const updated = draft.goals.includes(goal)
-      ? draft.goals.filter((item) => item !== goal)
-      : [...draft.goals, goal]
-    update('goals', updated)
-  }
-
-  const labelClass = 'grid gap-1.5 text-xs font-semibold text-foreground'
-  const buttonText = step < 2
-    ? t('onboarding.next')
-    : (french ? 'Explorer la démo' : 'Explore demo')
+  const goals = french
+    ? ['Tenir des registres quotidiens', 'Comprendre les revenus et dépenses', 'Préparer des documents', 'Apprendre les bases financières']
+    : ['Keep clearer daily records', 'Understand income and expenses', 'Prepare business documentation', 'Learn financial basics']
+  const label = 'grid gap-1.5 text-xs font-semibold text-foreground'
 
   return (
-    <main className="mx-auto min-h-[65vh] max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8" id="main-content">
-      <PageMeta description={t('onboarding.preview')} title={french ? 'Aperçu de configuration' : 'Workspace setup preview'} />
-      <PageHeader
-        description={french ? 'Quelques préférences illustratives. Rien n’est envoyé, enregistré ou utilisé pour créer un compte.' : 'A few illustrative preferences. Nothing is submitted, stored, or used to create an account.'}
-        eyebrow={t('onboarding.preview')}
-        title={french ? 'Configurez votre démo' : 'Set up your demo'}
-      >
-        <Link className={buttonClasses('outline')} to="/">
-          <ArrowLeft aria-hidden="true" size={16} /> {french ? 'Accueil' : 'Home'}
-        </Link>
-      </PageHeader>
-
-      <div className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
-        <Card className="min-w-0 p-5 sm:p-7">
-          <div className="mb-6">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-secondary">{french ? `Étape ${step + 1} sur 3` : `Step ${step + 1} of 3`}</p>
-              <span className="text-xs text-muted-foreground">{Math.round(((step + 1) / 3) * 100)}%</span>
-            </div>
-            <div aria-valuemax={3} aria-valuemin={1} aria-valuenow={step + 1} className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar">
-              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${((step + 1) / 3) * 100}%` }} />
-            </div>
-          </div>
-
-          <form className="grid gap-4" onSubmit={submitStep}>
-            {step === 0 && (
-              <>
-                <h2 className="font-display text-lg font-extrabold text-foreground">{french ? 'Parlez-nous de votre activité' : 'Tell us about your business'}</h2>
-                <label className={labelClass}>
-                  {french ? 'Nom fictif de l’entreprise' : 'Fictional business name'}
-                  <input className={inputClasses} maxLength={80} minLength={2} onChange={(event) => update('businessName', event.target.value)} required value={draft.businessName} />
-                </label>
-                <label className={labelClass}>
-                  {french ? 'Secteur' : 'Business sector'}
-                  <input className={inputClasses} maxLength={60} minLength={2} onChange={(event) => update('sector', event.target.value)} required value={draft.sector} />
-                </label>
-                <label className={labelClass}>
-                  {french ? 'Type d’activité' : 'Business type'}
-                  <select className={selectClasses} onChange={(event) => update('businessType', event.target.value as OnboardingDraft['businessType'])} value={draft.businessType}>
-                    <option value="sole-trader">{french ? 'Entrepreneur individuel' : 'Sole trader'}</option>
-                    <option value="family-business">{french ? 'Entreprise familiale' : 'Family business'}</option>
-                    <option value="small-team">{french ? 'Petite équipe' : 'Small team'}</option>
-                  </select>
-                </label>
-              </>
-            )}
-            {step === 1 && (
-              <>
-                <h2 className="font-display text-lg font-extrabold text-foreground">{french ? 'Choisissez des préférences locales' : 'Choose local preferences'}</h2>
-                <label className={labelClass}>
-                  {french ? 'Pays' : 'Country'}
-                  <input className={inputClasses} maxLength={60} minLength={2} onChange={(event) => update('country', event.target.value)} required value={draft.country} />
-                </label>
-                <label className={labelClass}>
-                  {french ? 'Devise' : 'Currency'}
-                  <select className={selectClasses} onChange={(event) => update('currency', event.target.value as OnboardingDraft['currency'])} value={draft.currency}>
-                    {['MAD', 'XAF', 'XOF', 'EUR', 'USD'].map((currency) => <option key={currency} value={currency}>{currency}</option>)}
-                  </select>
-                </label>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="flex items-start gap-2 text-sm font-semibold text-foreground">
-                    <ShieldCheck aria-hidden="true" className="mt-0.5 shrink-0 text-primary" size={17} />
-                    {french ? 'Synchronisation désactivée' : 'Cloud sync is off'}
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    {french ? 'Aucune donnée de profil ou financière ne sera envoyée au cloud. La synchronisation n’est pas disponible dans cette démo.' : 'No profile or financial data will be sent to the cloud. Sync is not available in this demo.'}
-                  </p>
-                </div>
-              </>
-            )}
-            {step === 2 && (
-              <>
-                <h2 className="font-display text-lg font-extrabold text-foreground">{french ? 'Quels sont vos objectifs ?' : 'What would you like to explore?'}</h2>
-                <p className="text-sm leading-6 text-muted-foreground">{french ? 'Choisissez au moins un objectif. Cette préférence ne sera pas enregistrée.' : 'Choose at least one goal. This preference will not be saved.'}</p>
-                <div className="grid gap-2">
-                  {goals[language].map((goal) => {
-                    const checked = draft.goals.includes(goal)
-                    return (
-                      <label className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-sm transition-colors ${checked ? 'border-primary/40 bg-primary/5 text-foreground' : 'border-border bg-surface text-muted-foreground hover:bg-muted/50'}`} key={goal}>
-                        <input checked={checked} className="size-4 accent-primary" onChange={() => toggleGoal(goal)} type="checkbox" />
-                        <span className="flex-1">{goal}</span>
-                        {checked && <Check aria-hidden="true" className="text-primary" size={16} />}
-                      </label>
-                    )
-                  })}
-                </div>
-                <p className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-foreground">
-                  {french
-                    ? 'Aucun consentement global n’est demandé. Les éventuelles requêtes éducatives cloud demanderont un consentement pour cette requête uniquement.'
-                    : 'No blanket consent is requested. Any cloud education request will ask for consent for that request only.'}
-                </p>
-              </>
-            )}
-
-            {errors.length > 0 && (
-              <ul className="grid gap-1 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive" role="alert">
-                {errors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}
-              </ul>
-            )}
-            <div className="flex justify-between gap-3 border-t border-border pt-4">
-              <Button disabled={step === 0} onClick={() => { setStep((current) => Math.max(0, current - 1)); setErrors([]) }} type="button" variant="outline">
-                <ArrowLeft aria-hidden="true" size={15} /> {t('onboarding.back')}
-              </Button>
-              <Button type="submit">{buttonText} <ArrowRight aria-hidden="true" size={15} /></Button>
-            </div>
-          </form>
-        </Card>
-
-        <aside className="h-fit min-w-0 rounded-2xl border border-warning/25 bg-warning/5 p-5">
-          <p className="text-xs font-extrabold uppercase tracking-wider text-warning">{french ? 'Aperçu uniquement' : 'Preview only'}</p>
-          <p className="mt-2 text-sm leading-6 text-foreground">
-            {french
-              ? 'Cette configuration reste en mémoire pendant la navigation. Aucun compte n’est créé et aucune préférence n’est persistée.'
-              : 'This setup stays in memory while you navigate. No account is created and no preferences are persisted.'}
-          </p>
-          <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            {french ? 'Le bouton final ouvre l’espace de démonstration existant, qui utilise des données synthétiques.' : 'The final action opens the existing demo workspace, which uses synthetic records.'}
-          </p>
-        </aside>
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6" id="main-content">
+      <PageMeta description={french ? 'Configuration permanente de votre activité.' : 'Set up your business workspace.'} title={french ? 'Configuration' : 'Business setup'} />
+      <div className="mb-6">
+        <p className="text-xs font-bold text-primary">{french ? `Étape ${step + 1} sur 6` : `Step ${step + 1} of 6`}</p>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${((step + 1) / 6) * 100}%` }} /></div>
       </div>
+      <Card className="p-5 sm:p-8">
+        <form className="grid gap-5" onSubmit={submit}>
+          {step === 0 && <><h1 className="font-display text-2xl font-extrabold">{french ? 'Bienvenue dans votre espace' : 'Welcome to your workspace'}</h1><p className="text-sm leading-6 text-muted-foreground">{french ? 'Configurez votre activité une seule fois. Les données financières restent locales.' : 'Set up your business once. Financial data remains local by default.'}</p></>}
+          {step === 1 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Informations professionnelles' : 'Business information'}</h1><label className={label}>{french ? 'Nom de l’entreprise' : 'Business name'}<input className={inputClasses} maxLength={80} onChange={(event) => update('name', event.target.value)} value={draft.name} /></label><label className={label}>{french ? 'Secteur' : 'Sector'}<input className={inputClasses} maxLength={60} onChange={(event) => update('sector', event.target.value)} value={draft.sector} /></label><label className={label}>{french ? 'Type d’activité' : 'Business type'}<select className={selectClasses} onChange={(event) => update('businessType', event.target.value as typeof draft.businessType)} value={draft.businessType}><option value="sole-trader">{french ? 'Entrepreneur individuel' : 'Sole trader'}</option><option value="family-business">{french ? 'Entreprise familiale' : 'Family business'}</option><option value="small-team">{french ? 'Petite équipe' : 'Small team'}</option></select></label></>}
+          {step === 2 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Pays et devise' : 'Country and currency'}</h1><label className={label}>{french ? 'Pays' : 'Country'}<input className={inputClasses} onChange={(event) => update('country', event.target.value)} value={draft.country} /></label><label className={label}>{french ? 'Devise' : 'Currency'}<select className={selectClasses} onChange={(event) => update('currency', event.target.value as typeof draft.currency)} value={draft.currency}>{['MAD','XAF','XOF','EUR','USD'].map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label className={label}>{french ? 'Fuseau horaire' : 'Timezone'}<input className={inputClasses} onChange={(event) => update('timezone', event.target.value)} value={draft.timezone} /></label></>}
+          {step === 3 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Vos objectifs financiers' : 'Financial objectives'}</h1><div className="grid gap-2">{goals.map((goal) => { const checked = draft.financialGoals.includes(goal); return <label className={`flex min-h-12 items-center gap-3 rounded-xl border px-3.5 ${checked ? 'border-primary/40 bg-primary/5' : 'border-border'}`} key={goal}><input checked={checked} className="size-4 accent-primary" onChange={() => update('financialGoals', checked ? draft.financialGoals.filter((item) => item !== goal) : [...draft.financialGoals, goal])} type="checkbox" /><span className="flex-1 text-sm">{goal}</span>{checked && <Check className="text-primary" size={16} />}</label> })}</div></>}
+          {step === 4 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Confidentialité locale' : 'Privacy preferences'}</h1><p className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6">{french ? 'Le profil professionnel est enregistré dans Firestore. Les transactions restent dans IndexedDB sur cet appareil. La synchronisation financière reste désactivée.' : 'Business metadata is stored in Firestore. Transactions remain in IndexedDB on this device. Financial synchronization remains disabled.'}</p></>}
+          {step === 5 && <><h1 className="font-display text-xl font-extrabold">{french ? 'Confirmez votre configuration' : 'Review your setup'}</h1><dl className="grid gap-3 rounded-xl border border-border p-4 text-sm"><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Entreprise' : 'Business'}</dt><dd className="font-bold">{draft.name}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Secteur' : 'Sector'}</dt><dd className="font-bold">{draft.sector}</dd></div><div className="flex justify-between gap-4"><dt className="text-muted-foreground">{french ? 'Devise' : 'Currency'}</dt><dd className="font-bold">{draft.currency}</dd></div></dl></>}
+          {error && <p className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive" role="alert">{error}</p>}
+          <div className="flex justify-between gap-3 border-t border-border pt-4">
+            <Button disabled={step === 0 || busy} onClick={() => setStep((current) => Math.max(0, current - 1))} type="button" variant="outline"><ArrowLeft size={15} />{french ? 'Retour' : 'Back'}</Button>
+            <Button disabled={busy} type="submit">{busy ? (french ? 'Enregistrement…' : 'Saving…') : step === 5 ? (french ? 'Terminer' : 'Complete setup') : (french ? 'Continuer' : 'Continue')}<ArrowRight size={15} /></Button>
+          </div>
+        </form>
+      </Card>
     </main>
   )
 }

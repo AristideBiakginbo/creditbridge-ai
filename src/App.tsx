@@ -4,6 +4,10 @@ import { LanguageProvider } from './app/providers/LanguageProvider'
 import { ThemeProvider } from './app/providers/ThemeProvider'
 import { RouteErrorPage } from './components/common/RouteErrorPage'
 import { RouteLoadingScreen } from './components/common/RouteLoadingScreen'
+import { GuestRoute } from './app/router/GuestRoute'
+import { OnboardingGuard } from './app/router/OnboardingGuard'
+import { WorkspaceGuard } from './app/router/WorkspaceGuard'
+import { VerificationGuard } from './app/router/VerificationGuard'
 
 const router = createBrowserRouter([
   {
@@ -54,19 +58,42 @@ const router = createBrowserRouter([
         path: 'login',
         lazy: async () => {
           const { LoginPreviewPage } = await import('./features/auth/LoginPreviewPage')
-          return { Component: LoginPreviewPage }
+          return {
+            Component: () => <GuestRoute><LoginPreviewPage /></GuestRoute>,
+          }
+        },
+      },
+      {
+        path: 'register',
+        lazy: async () => {
+          const { RegisterPage } = await import('./features/auth/RegisterPage')
+          return { Component: () => <GuestRoute><RegisterPage /></GuestRoute> }
+        },
+      },
+      {
+        path: 'forgot-password',
+        lazy: async () => {
+          const { ForgotPasswordPage } = await import('./features/auth/ForgotPasswordPage')
+          return { Component: () => <GuestRoute><ForgotPasswordPage /></GuestRoute> }
         },
       },
       {
         path: 'onboarding',
         lazy: async () => {
           const { OnboardingPreviewPage } = await import('./features/onboarding/OnboardingPreviewPage')
-          return { Component: OnboardingPreviewPage }
+          return { Component: () => <OnboardingGuard><OnboardingPreviewPage /></OnboardingGuard> }
+        },
+      },
+      {
+        path: 'verify-email',
+        lazy: async () => {
+          const { VerifyEmailPage } = await import('./features/auth/VerifyEmailPage')
+          return { Component: () => <VerificationGuard><VerifyEmailPage /></VerificationGuard> }
         },
       },
       {
         path: 'demo',
-        element: <Navigate replace to="/app/dashboard" />,
+        element: <Navigate replace to="/demo/dashboard" />,
       },
     ],
   },
@@ -74,12 +101,82 @@ const router = createBrowserRouter([
     path: '/app',
     HydrateFallback: RouteLoadingScreen,
     lazy: async () => {
+      const { RealWorkspaceLayout } = await import('./app/layouts/RealWorkspaceLayout')
+      return { Component: () => <WorkspaceGuard><RealWorkspaceLayout /></WorkspaceGuard> }
+    },
+    errorElement: <RouteErrorPage />,
+    children: [
+      { index: true, element: <Navigate replace to="/app/dashboard" /> },
+      {
+        path: 'dashboard',
+        lazy: async () => {
+          const { RealDashboardPage } = await import('./features/dashboard/RealDashboardPage')
+          return { Component: RealDashboardPage }
+        },
+      },
+      {
+        path: 'transactions',
+        lazy: async () => {
+          const { RealTransactionsPage } = await import('./features/transactions/RealTransactionsPage')
+          return { Component: RealTransactionsPage }
+        },
+      },
+      {
+        path: 'transactions/new',
+        lazy: async () => {
+          const { RealNewTransactionPage } = await import('./features/transactions/RealNewTransactionPage')
+          return { Component: RealNewTransactionPage }
+        },
+      },
+      {
+        path: 'assistant',
+        lazy: async () => {
+          const { AssistantPage } = await import('./features/assistant/AssistantPage')
+          return { Component: AssistantPage }
+        },
+      },
+      {
+        path: 'settings',
+        lazy: async () => {
+          const { AccountSettingsPage } = await import('./features/settings/AccountSettingsPage')
+          return { Component: AccountSettingsPage }
+        },
+      },
+      {
+        path: 'privacy',
+        lazy: async () => {
+          const { PrivacyCenterPage } = await import('./features/privacy/PrivacyCenterPage')
+          return { Component: PrivacyCenterPage }
+        },
+      },
+      ...[
+        'analytics',
+        'passport',
+        'loans',
+        'budgets',
+        'goals',
+        'debts',
+        'notifications',
+        'help',
+      ].map((path) => ({
+        path,
+        lazy: async () => {
+          const { UpcomingPage } = await import('./features/workspace/UpcomingPage')
+          return { Component: UpcomingPage }
+        },
+      })),
+    ],
+  },
+  {
+    path: '/demo',
+    HydrateFallback: RouteLoadingScreen,
+    lazy: async () => {
       const { DemoWorkspaceLayout } = await import('./app/layouts/DemoWorkspaceLayout')
       return { Component: DemoWorkspaceLayout }
     },
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <Navigate replace to="/app/dashboard" /> },
+      { index: true, element: <Navigate replace to="/demo/dashboard" /> },
       {
         path: 'dashboard',
         lazy: async () => {
